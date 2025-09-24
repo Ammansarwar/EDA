@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io
 
 st.set_page_config(page_title="Comprehensive EDA Dashboard", layout="wide")
 st.title("📊 Automated EDA Dashboard")
@@ -25,9 +26,9 @@ if uploaded_file:
 
     st.write("**Shape of dataset:**", df.shape)
 
-    buffer = []
+    buffer = io.StringIO()
     df.info(buf=buffer)
-    info_str = "\n".join(buffer)
+    info_str = buffer.getvalue()
     st.text(info_str)
 
     st.write("**Missing values per column:**")
@@ -124,4 +125,5 @@ if uploaded_file:
         most_demanded = top_products.index[0]
         st.write(f"- The most demanded product is **{most_demanded}** with {top_products.iloc[0]} orders.")
         st.write("- Products with high order counts don’t always have the highest price.")
-        st.write("- Seasonal or time trends can be observed if `OrderDate` is available.")
+        if "OrderDate" in df.columns:
+            st.write("- Seasonal or time trends can be observed in demand patterns.")
