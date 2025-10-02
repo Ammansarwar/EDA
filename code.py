@@ -3,83 +3,83 @@ import pandas as pd
 import plotly.express as px
 
 st.set_page_config(page_title="E-Commerce EDA", layout="wide")
+
 st.title("🛒 E-Commerce Exploratory Data Analysis (EDA)")
 
 # Upload file
 uploaded_file = st.file_uploader("Upload your E-commerce CSV file", type=["csv"])
-
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    st.success("✅ File uploaded!")
 
-    # Show basic info
     st.subheader("📋 Dataset Preview")
     st.dataframe(df.head())
 
-    # ================================
-    # 1. Sales Trend Over Time
-    # ================================
-    if "Order Date" in df.columns and "Sales" in df.columns:
-        df["Order Date"] = pd.to_datetime(df["Order Date"], errors="coerce")
-        sales_trend = df.groupby("Order Date")["Sales"].sum().reset_index()
-        fig = px.line(sales_trend, x="Order Date", y="Sales",
-                      title="📈 Sales Trend Over Time",
-                      color_discrete_sequence=["#e63946"])
-        st.plotly_chart(fig, use_container_width=True)
+    st.subheader("📊 Basic Info")
+    st.write(df.describe(include="all"))
 
-    # ================================
-    # 2. Top Selling Products
-    # ================================
-    if "Product Name" in df.columns and "Sales" in df.columns:
-        top_products = df.groupby("Product Name")["Sales"].sum().nlargest(10).reset_index()
-        fig = px.bar(top_products, x="Sales", y="Product Name", orientation="h",
-                     title="🏆 Top 10 Products by Sales",
-                     color="Sales", color_continuous_scale="viridis")
-        st.plotly_chart(fig, use_container_width=True)
+    # Drop duplicates + handle missing
+    df = df.drop_duplicates()
+    df = df.fillna("Unknown")
 
-    # ================================
-    # 3. Sales by Category
-    # ================================
-    if "Category" in df.columns and "Sales" in df.columns:
-        category_sales = df.groupby("Category")["Sales"].sum().reset_index()
-        fig = px.treemap(category_sales, path=["Category"], values="Sales",
-                         title="📦 Sales by Category",
-                         color="Sales", color_continuous_scale="Blues")
-        st.plotly_chart(fig, use_container_width=True)
+    st.success("✅ Data cleaned (duplicates removed, missing values filled).")
 
-    # ================================
-    # 4. Sales by Region/City
-    # ================================
-    if "Region" in df.columns and "Sales" in df.columns:
-        region_sales = df.groupby("Region")["Sales"].sum().reset_index()
-        fig = px.bar(region_sales, x="Region", y="Sales",
-                     title="🌍 Sales by Region",
-                     color="Sales", color_continuous_scale="plasma")
-        st.plotly_chart(fig, use_container_width=True)
+    # ---------------- Meaningful Graphs ---------------- #
 
-    # ================================
-    # 5. Payment Methods
-    # ================================
-    if "Payment Mode" in df.columns:
-        payment_counts = df["Payment Mode"].value_counts().reset_index()
-        payment_counts.columns = ["Payment Mode", "Count"]
-        fig = px.pie(payment_counts, names="Payment Mode", values="Count",
-                     title="💳 Payment Method Distribution",
-                     color_discrete_sequence=px.colors.sequential.RdBu)
-        st.plotly_chart(fig, use_container_width=True)
+    # 1. Top 10 Most Sold Products
+    if "Product" in df.columns:
+        st.subheader("🏆 Top 10 Most Sold Products")
+        top_products = df["Product"].value_counts().nlargest(10).reset_index()
+        top_products.columns = ["Product", "Count"]
+        fig1 = px.bar(top_products, x="Product", y="Count", 
+                      color="Count", text="Count",
+                      title="Top 10 Products", 
+                      color_continuous_scale="blues")
+        st.plotly_chart(fig1, use_container_width=True)
 
-    # ================================
-    # 6. Order Status
-    # ================================
-    if "Order Status" in df.columns:
-        status_counts = df["Order Status"].value_counts().reset_index()
-        status_counts.columns = ["Order Status", "Count"]
-        fig = px.bar(status_counts, x="Order Status", y="Count",
-                     title="📦 Order Status Distribution",
-                     color="Order Status",
-                     color_discrete_sequence=px.colors.qualitative.Set3)
-        st.plotly_chart(fig, use_container_width=True)
+    # 2. Top 10 Cities by Revenue
+    if "City" in df.columns and "Revenue" in df.columns:
+        st.subheader("🌆 Top 10 Cities by Revenue")
+        top_cities = df.groupby("City")["Revenue"].sum().nlargest(10).reset_index()
+        fig2 = px.bar(top_cities, x="Revenue", y="City",
+                      orientation="h", color="Revenue", text="Revenue",
+                      title="Top 10 Cities by Revenue",
+                      color_continuous_scale="viridis")
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # 3. Monthly Sales Trend
+    if "Date" in df.columns and "Revenue" in df.columns:
+        st.subheader("📈 Monthly Sales Trend")
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        monthly_sales = df.groupby(df["Date"].dt.to_period("M"))["Revenue"].sum().reset_index()
+        monthly_sales["Date"] = monthly_sales["Date"].astype(str)
+        fig3 = px.line(monthly_sales, x="Date", y="Revenue", markers=True,
+                       title="Monthly Sales Trend")
+        st.plotly_chart(fig3, use_container_width=True)
+
+    # 4. Payment Method Distribution
+    if "PaymentMethod" in df.columns:
+        st.subheader("💳 Payment Method Distribution")
+        payment_counts = df["PaymentMethod"].value_counts().reset_index()
+        payment_counts.columns = ["PaymentMethod", "Count"]
+        fig4 = px.pie(payment_counts, names="PaymentMethod", values="Count",
+                      title="Payment Method Share", hole=0.4)
+        st.plotly_chart(fig4, use_container_width=True)
+
+    # 5. Category Contribution
+    if "Category" in df.columns and "Revenue" in df.columns:
+        st.subheader("📦 Sales Contribution by Category")
+        cat_sales = df.groupby("Category")["Revenue"].sum().reset_index()
+        fig5 = px.treemap(cat_sales, path=["Category"], values="Revenue",
+                          title="Category-wise Revenue Contribution")
+        st.plotly_chart(fig5, use_container_width=True)
+
+    # 6. Correlation Heatmap
+    st.subheader("🔗 Correlation Heatmap")
+    numeric_df = df.select_dtypes(include=["int64", "float64"])
+    if not numeric_df.empty:
+        fig6 = px.imshow(numeric_df.corr(), text_auto=True,
+                         title="Correlation Heatmap of Numeric Features")
+        st.plotly_chart(fig6, use_container_width=True)
 
     st.success("✅ EDA Completed with Interactive Graphs!")
-else:
-    st.info("📤 Please upload your dataset to begin EDA.")
+
