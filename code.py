@@ -1,119 +1,87 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# --------------------------------
-# Streamlit Page Setup
-# --------------------------------
-st.set_page_config(page_title="E-Commerce EDA", layout="wide")
-st.title("🛒 E-Commerce Exploratory Data Analysis (EDA)")
+st.set_page_config(page_title="📊 Meaningful EDA", layout="wide")
 
-# --------------------------------
-# File Upload
-# --------------------------------
-uploaded_file = st.file_uploader("📂 Upload your E-commerce CSV file", type=["csv"])
+st.title("🛒 Interactive EDA Dashboard")
+st.write("Upload your dataset and explore meaningful insights with cool-colored interactive graphs.")
+
+# File uploader
+uploaded_file = st.file_uploader("📂 Upload CSV file", type="csv")
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    st.success("✅ File uploaded successfully!")
 
-    # Preview
     st.subheader("📋 Dataset Preview")
-    st.dataframe(df.head())
+    st.dataframe(df.head(10))
 
-    # --------------------------------
-    # Step 1: Data Cleaning / New Columns
-    # --------------------------------
-    st.subheader("🧹 Basic Information")
-    st.write(f"🔹 Shape: {df.shape[0]} rows × {df.shape[1]} columns")
-    st.write("🔹 Missing Values:")
-    st.write(df.isnull().sum())
-    st.write("🔹 Duplicate Rows:", df.duplicated().sum())
+    st.subheader("🔍 Dataset Info")
+    st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
+    st.write("Columns:", list(df.columns))
 
-    # Add revenue column
-    df["revenue"] = df["quantity"] * df["price"]
+    # ---------- Numerical Column Analysis ----------
+    num_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    cat_cols = df.select_dtypes(include=['object']).columns.tolist()
 
-    # --------------------------------
-    # Step 2: Univariate Analysis
-    # --------------------------------
-    st.header("📊 Univariate Analysis")
+    if num_cols:
+        st.subheader("💰 Price / Numeric Distributions")
+        for col in num_cols[:3]:  # Show first 3 numeric cols meaningfully
+            fig = px.histogram(df, x=col, nbins=40, color_discrete_sequence=["#6EC5E9"])
+            fig.update_layout(title=f"Distribution of {col}", bargap=0.1)
+            st.plotly_chart(fig, use_container_width=True)
+            st.info(f"ℹ️ This graph shows how **{col}** values are distributed in the dataset. "
+                    "It helps identify common ranges, outliers, or skewed data.")
 
-    # Price Distribution
-    fig1 = px.histogram(df, x="price", nbins=30, color_discrete_sequence=["#FF6347"],
-                        title="Price Distribution", height=500, width=900)
-    st.plotly_chart(fig1, use_container_width=True)
+    # ---------- Top Categories ----------
+    if cat_cols:
+        st.subheader("🏆 Top 10 Categories (Most Frequent)")
+        for col in cat_cols[:2]:  # Show top 2 categorical cols
+            top10 = df[col].value_counts().nlargest(10)
+            fig = px.bar(top10, x=top10.index, y=top10.values,
+                         color=top10.values, color_continuous_scale="Blues")
+            fig.update_layout(title=f"Top 10 {col}", xaxis_title=col, yaxis_title="Count")
+            st.plotly_chart(fig, use_container_width=True)
+            st.info(f"ℹ️ This graph shows the **Top 10 most common values in {col}**. "
+                    "It highlights which categories dominate your dataset.")
 
-    # Quantity Distribution
-    fig2 = px.histogram(df, x="quantity", nbins=30, color_discrete_sequence=["#4682B4"],
-                        title="Quantity Distribution", height=500, width=900)
-    st.plotly_chart(fig2, use_container_width=True)
+    # ---------- Revenue Analysis ----------
+    if set(["Quantity", "Price"]).issubset(df.columns):
+        st.subheader("💸 Revenue Analysis")
+        df["Revenue"] = df["Quantity"] * df["Price"]
+        top_products = df.groupby("Product")["Revenue"].sum().nlargest(10)
+        fig = px.bar(top_products, x=top_products.index, y=top_products.values,
+                     color=top_products.values, color_continuous_scale="Tealgrn")
+        fig.update_layout(title="Top 10 Products by Revenue", xaxis_title="Product", yaxis_title="Revenue")
+        st.plotly_chart(fig, use_container_width=True)
+        st.info("ℹ️ This chart highlights which products generated the most revenue. "
+                "It helps identify best-selling items driving business growth.")
 
-    # Discount Distribution
-    fig3 = px.histogram(df, x="discount", nbins=30, color_discrete_sequence=["#32CD32"],
-                        title="Discount Distribution", height=500, width=900)
-    st.plotly_chart(fig3, use_container_width=True)
+    # ---------- Correlation Heatmap ----------
+    if len(num_cols) > 1:
+        st.subheader("📊 Correlation Heatmap")
+        corr = df[num_cols].corr()
+        plt.figure(figsize=(8, 5))
+        sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f")
+        st.pyplot(plt)
+        st.info("ℹ️ The heatmap shows correlations between numeric columns. "
+                "A high correlation means the variables move together, useful for feature selection.")
 
-    # --------------------------------
-    # Step 3: Bivariate Analysis
-    # --------------------------------
-    st.header("🔗 Bivariate Analysis")
-
-    # Price vs Quantity
-    fig4 = px.scatter(df, x="price", y="quantity", size="revenue", color="discount",
-                      title="Price vs Quantity (Bubble = Revenue, Color = Discount)",
-                      height=500, width=900)
-    st.plotly_chart(fig4, use_container_width=True)
-
-    # Discount vs Quantity
-    fig5 = px.scatter(df, x="discount", y="quantity", size="revenue", color="price",
-                      title="Discount vs Quantity (Bubble = Revenue, Color = Price)",
-                      height=500, width=900)
-    st.plotly_chart(fig5, use_container_width=True)
-
-    # Discount vs Revenue
-    fig6 = px.scatter(df, x="discount", y="revenue", size="quantity", color="price",
-                      title="Discount vs Revenue (Bubble = Quantity, Color = Price)",
-                      height=500, width=900)
-    st.plotly_chart(fig6, use_container_width=True)
-
-    # --------------------------------
-    # Step 4: Aggregates (Top Entities)
-    # --------------------------------
-    st.header("🏆 Aggregate Insights")
-
-    # Top 10 Products by Revenue
-    top_products_revenue = df.groupby("product_id")["revenue"].sum().nlargest(10).reset_index()
-    fig7 = px.bar(top_products_revenue, x="product_id", y="revenue", text="revenue",
-                  color="revenue", title="Top 10 Products by Revenue",
-                  height=500, width=900)
-    st.plotly_chart(fig7, use_container_width=True)
-
-    # Top 10 Products by Quantity
-    top_products_quantity = df.groupby("product_id")["quantity"].sum().nlargest(10).reset_index()
-    fig8 = px.bar(top_products_quantity, x="product_id", y="quantity", text="quantity",
-                  color="quantity", title="Top 10 Products by Quantity",
-                  height=500, width=900)
-    st.plotly_chart(fig8, use_container_width=True)
-
-    # Top 10 Customers by Spending
-    top_customers = df.groupby("customer_id")["revenue"].sum().nlargest(10).reset_index()
-    fig9 = px.bar(top_customers, x="customer_id", y="revenue", text="revenue",
-                  color="revenue", title="Top 10 Customers by Spending",
-                  height=500, width=900)
-    st.plotly_chart(fig9, use_container_width=True)
-
-    # --------------------------------
-    # Step 5: Correlation Heatmap
-    # --------------------------------
-    st.header("📌 Correlation Heatmap")
-    corr = df[["quantity", "price", "discount", "revenue"]].corr()
-    fig10 = px.imshow(corr, text_auto=True, color_continuous_scale="Blues",
-                      title="Correlation Heatmap of Numeric Features",
-                      height=600, width=900)
-    st.plotly_chart(fig10, use_container_width=True)
-
-    # --------------------------------
-    st.success("✅ Full EDA Completed with 10 Interactive Graphs!")
+    # ---------- Missing Values ----------
+    st.subheader("❌ Missing Values")
+    missing = df.isnull().sum()
+    missing = missing[missing > 0]
+    if not missing.empty:
+        fig = px.bar(missing, x=missing.index, y=missing.values,
+                     color=missing.values, color_continuous_scale="Purples")
+        fig.update_layout(title="Missing Values per Column", xaxis_title="Column", yaxis_title="Missing Count")
+        st.plotly_chart(fig, use_container_width=True)
+        st.info("ℹ️ This chart highlights columns with missing values. "
+                "Understanding missing data is crucial before modeling.")
+    else:
+        st.success("✅ No missing values found in this dataset!")
 
 else:
-    st.warning("⚠️ Please upload a CSV file to start the EDA.")
+    st.warning("📂 Please upload a CSV file to begin EDA.")
