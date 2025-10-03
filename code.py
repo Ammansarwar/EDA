@@ -20,12 +20,6 @@ if uploaded_file is not None:
     st.subheader("📋 Dataset Preview")
     st.dataframe(df.head())
 
-    # Check required columns
-    required_cols = ["product_id", "quantity", "price", "order_date", "payment_method", "region"]
-    for col in required_cols:
-        if col not in df.columns:
-            st.warning(f"⚠️ Column `{col}` not found in dataset. Some graphs may not display properly.")
-
     # Create Revenue column
     if "quantity" in df.columns and "price" in df.columns:
         df["Revenue"] = df["quantity"] * df["price"]
@@ -44,6 +38,7 @@ if uploaded_file is not None:
                       color="quantity", color_continuous_scale="Blues",
                       title="Top 10 Products by Quantity Sold")
         st.plotly_chart(fig1, use_container_width=True)
+        st.info("📌 Insight: These are the most popular products by quantity. Useful for inventory and restocking decisions.")
 
     # ---------------------------
     # 2️⃣ Revenue by Category
@@ -54,6 +49,7 @@ if uploaded_file is not None:
         fig2 = px.bar(revenue_cat, x="category", y="Revenue", color="Revenue",
                       color_continuous_scale="Purples", title="Revenue by Category")
         st.plotly_chart(fig2, use_container_width=True)
+        st.info("📌 Insight: This shows which product categories generate the most revenue.")
 
     # ---------------------------
     # 3️⃣ Sales Trend Over Time
@@ -65,6 +61,7 @@ if uploaded_file is not None:
         fig3 = px.line(sales_trend, x="order_date", y="Revenue", markers=True,
                        title="Monthly Revenue Trend", line_shape="spline")
         st.plotly_chart(fig3, use_container_width=True)
+        st.info("📌 Insight: Shows how revenue changes over months. Useful to detect seasonal peaks or declines.")
 
     # ---------------------------
     # 4️⃣ Payment Method Distribution
@@ -74,6 +71,7 @@ if uploaded_file is not None:
         fig4 = px.pie(df, names="payment_method", title="Share of Payment Methods",
                       color_discrete_sequence=px.colors.sequential.RdBu)
         st.plotly_chart(fig4, use_container_width=True)
+        st.info("📌 Insight: Displays the preferred payment methods of customers (e.g., card, cash, online).")
 
     # ---------------------------
     # 5️⃣ Customer Location Revenue
@@ -84,5 +82,10 @@ if uploaded_file is not None:
         fig5 = px.bar(region_rev, x="region", y="Revenue", color="Revenue",
                       color_continuous_scale="Greens", title="Revenue by Region")
         st.plotly_chart(fig5, use_container_width=True)
+        st.info("📌 Insight: Shows which regions contribute the most revenue. Useful for targeting campaigns.")
 
-    st.success("✅ EDA Completed with 5 Most Meaningful Interactive Graphs!")
+    # ---------------------------
+    # Final Conclusion
+    # ---------------------------
+    st.subheader("📊 Final Conclusion")
+    st.success("This analysis highlights top products, best-performing categories, revenue trends, customer preferences in payment, and regional contributions. Together, these insights can guide marketing, supply chain, and sales strategy.")
