@@ -1,91 +1,88 @@
-# 1. Import libraries
+import streamlit as st
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
 
-# Set style
-sns.set(style="whitegrid", palette="cool")
+# ---------------------------
+# Title
+# ---------------------------
+st.set_page_config(page_title="📊 E-Commerce EDA", layout="wide")
+st.title("🛍️ E-Commerce Exploratory Data Analysis")
 
-# 2. Load dataset
-data = pd.read_csv("ecommerce_dataset.csv")
+# ---------------------------
+# File Upload
+# ---------------------------
+uploaded_file = st.file_uploader("📂 Upload your E-commerce CSV file", type=["csv"])
 
-# 3. Preview dataset
-print("Dataset Shape:", data.shape)
-print("\nFirst 5 rows:\n", data.head())
-print("\nSummary statistics:\n", data.describe())
-print("\nInfo:")
-print(data.info())
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-# 4. Missing values
-print("\nMissing values:\n", data.isnull().sum())
+    # Preview
+    st.subheader("📋 Dataset Preview")
+    st.dataframe(df.head())
 
-# 5. Remove duplicates
-data.drop_duplicates(inplace=True)
+    # Check required columns
+    required_cols = ["product_id", "quantity", "price", "order_date", "payment_method", "region"]
+    for col in required_cols:
+        if col not in df.columns:
+            st.warning(f"⚠️ Column `{col}` not found in dataset. Some graphs may not display properly.")
 
-# 6. Feature Engineering: Revenue
-data["Revenue"] = data["Quantity"] * data["Price"]
+    # Create Revenue column
+    if "quantity" in df.columns and "price" in df.columns:
+        df["Revenue"] = df["quantity"] * df["price"]
 
-# 7. Outlier detection (example for Price)
-q1, q3 = np.percentile(data['Price'], [25, 75])
-iqr = q3 - q1
-lower_bound = q1 - (1.5 * iqr)
-upper_bound = q3 + (1.5 * iqr)
-print(f"\nPrice Outlier Range: {lower_bound} to {upper_bound}")
+    # Ensure date type
+    if "order_date" in df.columns:
+        df["order_date"] = pd.to_datetime(df["order_date"], errors="coerce")
 
-# --- 📊 Visualizations ---
+    # ---------------------------
+    # 1️⃣ Top 10 Selling Products
+    # ---------------------------
+    if "product_id" in df.columns:
+        st.subheader("🏆 Top 10 Selling Products")
+        top_products = df.groupby("product_id")["quantity"].sum().nlargest(10).reset_index()
+        fig1 = px.bar(top_products, x="quantity", y="product_id", orientation="h",
+                      color="quantity", color_continuous_scale="Blues",
+                      title="Top 10 Products by Quantity Sold")
+        st.plotly_chart(fig1, use_container_width=True)
 
-# 8. Quantity distribution
-plt.figure(figsize=(8,5))
-sns.histplot(data['Quantity'], bins=30, kde=True, color="skyblue")
-plt.title("Distribution of Quantity Ordered")
-plt.show()
+    # ---------------------------
+    # 2️⃣ Revenue by Category
+    # ---------------------------
+    if "category" in df.columns:
+        st.subheader("📦 Revenue by Category")
+        revenue_cat = df.groupby("category")["Revenue"].sum().reset_index().sort_values(by="Revenue", ascending=False)
+        fig2 = px.bar(revenue_cat, x="category", y="Revenue", color="Revenue",
+                      color_continuous_scale="Purples", title="Revenue by Category")
+        st.plotly_chart(fig2, use_container_width=True)
 
-# 9. Price distribution
-plt.figure(figsize=(8,5))
-sns.histplot(data['Price'], bins=30, kde=True, color="orange")
-plt.title("Distribution of Product Prices")
-plt.show()
+    # ---------------------------
+    # 3️⃣ Sales Trend Over Time
+    # ---------------------------
+    if "order_date" in df.columns:
+        st.subheader("📅 Sales Trend Over Time")
+        sales_trend = df.groupby(df["order_date"].dt.to_period("M"))["Revenue"].sum().reset_index()
+        sales_trend["order_date"] = sales_trend["order_date"].astype(str)
+        fig3 = px.line(sales_trend, x="order_date", y="Revenue", markers=True,
+                       title="Monthly Revenue Trend", line_shape="spline")
+        st.plotly_chart(fig3, use_container_width=True)
 
-# 10. Revenue distribution (boxplot)
-plt.figure(figsize=(8,5))
-sns.boxplot(x=data['Revenue'], color="lightgreen")
-plt.title("Revenue Distribution per Order")
-plt.show()
+    # ---------------------------
+    # 4️⃣ Payment Method Distribution
+    # ---------------------------
+    if "payment_method" in df.columns:
+        st.subheader("💳 Payment Method Distribution")
+        fig4 = px.pie(df, names="payment_method", title="Share of Payment Methods",
+                      color_discrete_sequence=px.colors.sequential.RdBu)
+        st.plotly_chart(fig4, use_container_width=True)
 
-# 11. Top 10 products by revenue
-top_products = data.groupby("Product_ID")["Revenue"].sum().nlargest(10)
-plt.figure(figsize=(10,6))
-sns.barplot(x=top_products.values, y=top_products.index, palette="Blues_r")
-plt.title("Top 10 Products by Revenue")
-plt.xlabel("Total Revenue")
-plt.ylabel("Product ID")
-plt.show()
+    # ---------------------------
+    # 5️⃣ Customer Location Revenue
+    # ---------------------------
+    if "region" in df.columns:
+        st.subheader("🌍 Customer Location Revenue")
+        region_rev = df.groupby("region")["Revenue"].sum().reset_index().sort_values(by="Revenue", ascending=False)
+        fig5 = px.bar(region_rev, x="region", y="Revenue", color="Revenue",
+                      color_continuous_scale="Greens", title="Revenue by Region")
+        st.plotly_chart(fig5, use_container_width=True)
 
-# 12. Top 10 customers by spending
-top_customers = data.groupby("Customer_ID")["Revenue"].sum().nlargest(10)
-plt.figure(figsize=(10,6))
-sns.barplot(x=top_customers.values, y=top_customers.index, palette="Purples_r")
-plt.title("Top 10 Customers by Spending")
-plt.xlabel("Total Spending")
-plt.ylabel("Customer ID")
-plt.show()
-
-# 13. Scatter: Price vs Quantity
-plt.figure(figsize=(8,5))
-sns.scatterplot(x="Price", y="Quantity", data=data, alpha=0.6, color="red")
-plt.title("Price vs Quantity")
-plt.show()
-
-# 14. Scatter: Discount vs Quantity
-plt.figure(figsize=(8,5))
-sns.scatterplot(x="Discount", y="Quantity", data=data, alpha=0.6, color="green")
-plt.title("Discount vs Quantity Ordered")
-plt.show()
-
-# 15. Correlation heatmap
-plt.figure(figsize=(8,6))
-corr = data[["Quantity", "Price", "Discount", "Revenue"]].corr()
-sns.heatmap(corr, annot=True, cmap="coolwarm", linewidths=0.5)
-plt.title("Correlation Between Key Variables")
-plt.show()
+    st.success("✅ EDA Completed with 5 Most Meaningful Interactive Graphs!")
